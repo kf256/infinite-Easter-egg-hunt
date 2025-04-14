@@ -295,75 +295,6 @@
             img_1600_1.onload = imageLoaded;
             let imageSubdivisions;
             
-            function posToPx(pos) {
-                const posNew = pos.absolute();
-                
-                posNew[1] -= Pos.h/2;
-                
-                posNew[0] *= size;
-                posNew[1] *= size;
-                
-                const centerX = cw/2;
-                const centerY = ch/2;
-                posNew[0] += centerX;
-                posNew[1] += centerY;
-                
-                return posNew;
-            }
-            
-            function drawPos() {
-                ctx.beginPath();
-                ctx.fillStyle = "red";
-                ctx.arc(...posToPx(mainPos), mainPos.absoluteZ*size/5, 0, Math.PI*2);
-                ctx.fill();
-                ctx.closePath();
-                
-                ctx.beginPath();
-                ctx.fillStyle = "#f004";
-                ctx.moveTo(...posToPx(mainPos.sectionCorner1));
-                ctx.lineTo(...posToPx(mainPos.sectionCorner2));
-                ctx.lineTo(...posToPx(mainPos.sectionCorner3));
-                ctx.fill();
-                ctx.closePath();
-                
-                ctx.beginPath();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "#00f8";
-                ctx.fillStyle = "#00f4";
-                ctx.moveTo(...posToPx(mainPos.translate(-cw/size/2, -ch/size/2)));
-                ctx.lineTo(...posToPx(mainPos.translate(-cw/size/2,  ch/size/2)));
-                ctx.lineTo(...posToPx(mainPos.translate( cw/size/2,  ch/size/2)));
-                ctx.lineTo(...posToPx(mainPos.translate( cw/size/2, -ch/size/2)));
-                ctx.lineTo(...posToPx(mainPos.translate(-cw/size/2, -ch/size/2)));
-                ctx.fill();
-                ctx.stroke();
-                ctx.closePath();
-            }
-            
-            function drawLines(iteration) {
-                for (let i = 1; i <= 2**iteration; i++) {
-                    let y = i/2**iteration*Pos.h;
-                    let x = i/2**iteration;
-                    
-                    ctx.beginPath();
-                    ctx.strokeStyle = "black";
-                    ctx.lineWidth = 4/2**iteration;
-                    ctx.lineCap = "round";
-                    
-                    ctx.moveTo(...posToPx(new Pos([], 0, -x, y)));
-                    ctx.lineTo(...posToPx(new Pos([], 0,  x, y)));
-                    
-                    ctx.moveTo(...posToPx(new Pos([], 0, -1+x  , Pos.h-y)));
-                    ctx.lineTo(...posToPx(new Pos([], 0, -1+x*2, Pos.h  )));
-                    
-                    ctx.moveTo(...posToPx(new Pos([], 0,  1-x  , Pos.h-y)));
-                    ctx.lineTo(...posToPx(new Pos([], 0,  1-x*2, Pos.h  )));
-                    
-                    ctx.stroke();
-                    ctx.closePath();
-                }
-            }
-            
             function drawSierpinski() {
                 let positions = [];
                 for (let dy = -2; dy < 2; dy += 0.5) {
@@ -495,8 +426,6 @@
                 approachTarget(delay);
                 
                 ctx.clearRect(0, 0, cw, ch);
-                for (let i = 0; i < 8; i++) drawLines(i);
-                drawPos();
                 const start = Date.now();
                 drawSierpinski();
                 const end = Date.now();
