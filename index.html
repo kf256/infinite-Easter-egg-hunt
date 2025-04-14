@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            canvas {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                width: 100vw;
+                height: 100vh;
+                z-index: -1;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas" width="960" height="840"></canvas>
+        <img id="img_1600_05" src="./1600_05.png" style="display: none;"></img>
+        <img id="img_1600_1"  src="./1600_1.png"  style="display: none;"></img>
+        <p id="p"></p>
+        <p id="drawingTime"></p>
+        <script>
+            class Pos {
+                constructor(sections = [], level = 0, x = 0, y = Pos.h*2/3, z = 0.5) {
+                    this.sections = sections;
+                    this.level = level;
+                    this.x = x;
+                    this.y = y;
+                    this.z = z;
+                }
+                
+                increaseLevel() {
+                    if (this.x < Pos.h/2) {
+                        this.sections.push(1);
+                        this.x *= 2;
+                        this.y *= 2;
+                    } else if (this.x - this.y/Pos.h > -1) {
+                        this.sections.push(2);
+                        this.x = this.x*2+1;
+                        this.y = this.y*2-Pos.h;
+                    } else if (this.x + this.y/Pos.h <  1) {
+                        this.sections.push(3);
+                        this.x = this.x*2-1;
+                        this.y = this.y*2-Pos.h;
+                    } else {
+                        this.sections.push(0);
+                        this.x *= -2;
+                        this.y = Pos.h*2-this.y*2;
+                    }
+                    this.level++;
+                    this.z *= 2;
+                    this.simplifySections();
+                }
+                
+                decreaseLevel() {
+                    if (this.sections.length === 0) this.addSection();
+                    switch (this.sections.pop()) {
+                        case 0:
+                            this.x /= -2;
+                            this.y = Pos.h-this.y/2;
+                            break;
+                        case 1:
+                            this.x /= 2;
+                            this.y /= 2;
+                            break;
+                        case 2:
+                            this.x = this.x/2-0.5;
+                            this.y = Pos.h/2+this.y/2;
+                            break;
+                        case 3:
+                            this.x = this.x/2+0.5;
+                            this.y = Pos.h/2+this.y/2;
+                            break;
+                    }
+                    this.level--;
+                    this.z /= 2;
+                }
+                
+                simplifySections() {
+                    if (this.sections.length === 0) return;
+                    const level = this.level-this.sections.length;
+                    if (this.sections[0] !== Pos.defaultSection(level)) return;
+                    this.sections.shift();
+                    this.simplifySections();
+                }
+                
+                addSection() {
+                    const level = this.level-this.sections.length-1;
+                    this.sections.unshift(Pos.defaultSection(level));
+                }
+                
+                updateSections() {
+                    let changed = false;
+                    
+                    if (this.y > Pos.h) {
+                        const index0 = this.sections.lastIndexOf(0);
+                        const index1 = this.sections.lastIndexOf(1);
+                        let index = Math.max(index0, index1);
+                        while (index === -1) {
+                            this.addSection();
+                            index = this.sections.lastIndexOf(1);
+                        }
+                        
+                        this.x *= -1;
+                        this.y = Pos.h*2-this.y;
+                        
+                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [1, 0, 3, 2][this.sections[i]];
+                        
+                        changed = true;
+                    }
+                    if (this.x - this.y/Pos.h > 0) {
+                        const index0 = this.sections.lastIndexOf(0);
+                        const index2 = this.sections.lastIndexOf(2);
+                        let index = Math.max(index0, index2);
+                        while (index === -1) {
+                            this.addSection();
+                            index = this.sections.lastIndexOf(2);
+                        }
+                        
+                        this.x = 1-this.x;
+                        this.y = Pos.h-this.y;
+                        
+                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [2, 3, 0, 1][this.sections[i]];
+                        
+                        changed = true;
+                    }
+                    if (this.x + this.y/Pos.h < 0) {
+                        const index0 = this.sections.lastIndexOf(0);
+                        const index3 = this.sections.lastIndexOf(3);
+                        let index = Math.max(index0, index3);
+                        while (index === -1) {
+                            this.addSection();
+                            index = this.sections.lastIndexOf(3);
+                        }
+                        
+                        this.x = -1-this.x;
+                        this.y = Pos.h-this.y;
+                        
+                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [3, 2, 1, 0][this.sections[i]];
+                        
+                        changed = true;
+                    }
+                    
+                    if (changed) this.updateSections();
+                    else this.simplifySections();
+                }
+                
+                update() {
+                    if (this.z >=   1) this.decreaseLevel();
+                    if (this.z <  0.5) this.increaseLevel();
+                    this.updateSections();
+                }
+                
+                absolute() {
+                    let x = 0;
+                    let y = 0;
+                    let factor;
+                    
+                    if (this.startLevel < 0) {
+                        factor = 0.5**this.startLevel;
+                        for (let i = this.startLevel; i < 0; i++) {
+                            switch (Pos.defaultSection(i)) {
+                                case 0:
+                                    y -= factor*Pos.h;
+                                    factor *= -1;
+                                    break;
+                                case 1:
+                                    break;
+                                case 2:
+                                    x += factor/2;
+                                    y -= factor*Pos.h/2;
+                                    break;
+                                case 3:
+                                    x -= factor/2;
+                                    y -= factor*Pos.h/2;
+                                    break;
+                            }
+                            factor /= 2;
+                        }
+                    } else if (this.startLevel > 0) {
+                        factor = 1;
+                        for (let i = 0; i < this.startLevel; i++) {
+                            switch (Pos.defaultSection(i)) {
+                                case 0:
+                                    y += factor*Pos.h;
+                                    factor *= -1;
+                                    break;
+                                case 1:
+                                    break;
+                                case 2:
+                                    x -= factor/2;
+                                    y += factor*Pos.h/2;
+                                    break;
+                                case 3:
+                                    x += factor/2;
+                                    y += factor*Pos.h/2;
+                                    break;
+                            }
+                            factor /= 2;
+                        }
+                    }
+                    
+                    factor = 0.5**this.startLevel;
+                    
+                    for (let i = 0; i < this.sections.length; i++) {
+                        switch (this.sections[i]) {
+                            case 0:
+                                y += factor*Pos.h;
+                                factor *= -1;
+                                break;
+                            case 1:
+                                break;
+                            case 2:
+                                x -= factor/2;
+                                y += factor*Pos.h/2;
+                                break;
+                            case 3:
+                                x += factor/2;
+                                y += factor*Pos.h/2;
+                                break;
+                        }
+                        factor /= 2;
+                    }
+                    
+                    x += factor*this.x;
+                    y += factor*this.y;
+                    
+                    return [x, y];
+                }
+                get absoluteZ() {
+                    return this.z/2**this.level;
+                }
+                
+                get reverse() {
+                    let result = 1;
+                    for (let i = 0; i < this.sections.length; i++) if (this.sections[i] === 0) result *= -1;
+                    return result;
+                }
+                
+                translate(Δx, Δy) {
+                    const factor = this.z*this.reverse;
+                    const pos = new Pos([...this.sections], this.level, this.x+Δx*factor, this.y+Δy*factor, this.z);
+                    pos.updateSections();
+                    return pos;
+                }
+                
+                get copy() {
+                    return new Pos([...this.sections], this.level, this.x, this.y, this.z);
+                }
+                
+                addXY(Δx, Δy) {
+                    this.x += Δx*this.reverse;
+                    this.y += Δy*this.reverse;
+                    this.updateSections();
+                    return this;
+                }
+                
+                get sectionCorner1() {
+                    return new Pos([...this.sections], this.level,  0,     0, this.z);
+                }
+                get sectionCorner2() {
+                    return new Pos([...this.sections], this.level, -1, Pos.h, this.z);
+                }
+                get sectionCorner3() {
+                    return new Pos([...this.sections], this.level,  1, Pos.h, this.z);
+                }
+                
+                get startLevel() {
+                    return this.level-this.sections.length;
+                }
+                
+                
+                static h = Math.sqrt(3);
+                static defaultSection(level) {
+                    return Math.floor(Math.sin(level)**2*1024*3)%3+1;
+                }
+            }
+            
+            const ctx = canvas.getContext("2d");
+            let cw, ch, size;
+            
+            let mainPos = new Pos([], 0, 0, Pos.h/2, 1000);
+            let targetX = 0;
+            let targetY = 0;
+            let targetZ = 1/mainPos.z;
+            
+            let lastDraw = Date.now();
+            
+            let imageCounter = 0;
+            function imageLoaded() {
+                imageCounter++;
+                if (imageCounter === 2) draw();
+            }
+            img_1600_05.onload = imageLoaded;
+            img_1600_1.onload = imageLoaded;
+            let imageSubdivisions;
+            
+            function posToPx(pos) {
+                const posNew = pos.absolute();
+                
+                posNew[1] -= Pos.h/2;
+                
+                posNew[0] *= size;
+                posNew[1] *= size;
+                
+                const centerX = cw/2;
+                const centerY = ch/2;
+                posNew[0] += centerX;
+                posNew[1] += centerY;
+                
+                return posNew;
+            }
+            
+            function drawPos() {
+                ctx.beginPath();
+                ctx.fillStyle = "red";
+                ctx.arc(...posToPx(mainPos), mainPos.absoluteZ*size/5, 0, Math.PI*2);
+                ctx.fill();
+                ctx.closePath();
+                
+                ctx.beginPath();
+                ctx.fillStyle = "#f004";
+                ctx.moveTo(...posToPx(mainPos.sectionCorner1));
+                ctx.lineTo(...posToPx(mainPos.sectionCorner2));
+                ctx.lineTo(...posToPx(mainPos.sectionCorner3));
+                ctx.fill();
+                ctx.closePath();
+                
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#00f8";
+                ctx.fillStyle = "#00f4";
+                ctx.moveTo(...posToPx(mainPos.translate(-cw/size/2, -ch/size/2)));
+                ctx.lineTo(...posToPx(mainPos.translate(-cw/size/2,  ch/size/2)));
+                ctx.lineTo(...posToPx(mainPos.translate( cw/size/2,  ch/size/2)));
+                ctx.lineTo(...posToPx(mainPos.translate( cw/size/2, -ch/size/2)));
+                ctx.lineTo(...posToPx(mainPos.translate(-cw/size/2, -ch/size/2)));
+                ctx.fill();
+                ctx.stroke();
+                ctx.closePath();
+            }
+            
+            function drawLines(iteration) {
+                for (let i = 1; i <= 2**iteration; i++) {
+                    let y = i/2**iteration*Pos.h;
+                    let x = i/2**iteration;
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = "black";
+                    ctx.lineWidth = 4/2**iteration;
+                    ctx.lineCap = "round";
+                    
+                    ctx.moveTo(...posToPx(new Pos([], 0, -x, y)));
+                    ctx.lineTo(...posToPx(new Pos([], 0,  x, y)));
+                    
+                    ctx.moveTo(...posToPx(new Pos([], 0, -1+x  , Pos.h-y)));
+                    ctx.lineTo(...posToPx(new Pos([], 0, -1+x*2, Pos.h  )));
+                    
+                    ctx.moveTo(...posToPx(new Pos([], 0,  1-x  , Pos.h-y)));
+                    ctx.lineTo(...posToPx(new Pos([], 0,  1-x*2, Pos.h  )));
+                    
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
+            
+            function drawSierpinski() {
+                let positions = [];
+                for (let dy = -2; dy < 2; dy += 0.5) {
+                    for (let dx = -2; dx < 2; dx += 0.5) {
+                        const newPos = mainPos.copy.addXY(dx, dy);
+                        let found = false;
+                        for (let i = 0; i < positions.length; i++) {
+                            const positionI = positions[i][0];
+                            if (positionI.sections.length !== newPos.sections.length) continue;
+                            let equal = true;
+                            for (let j = 0; j < positionI.sections.length; j++) {
+                                if (positionI.sections[j] !== newPos.sections[j]) {
+                                    equal = false;
+                                    break;
+                                }
+                            }
+                            if (equal) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) positions.push([newPos, dx, dy]);
+                    }
+                }
+                
+                for (let i = 0; i < positions.length; i++) {
+                    const pos2 = positions[i][0];
+                    if (pos2.sections.indexOf(0) !== -1) continue;
+                    
+                    const pos1relX = positions[i][1];
+                    const pos1relY = positions[i][2];
+                    
+                    const pos2relX = -1-pos2.x;
+                    const pos2relY =   -pos2.y;
+                    
+                    dx = pos1relX+pos2relX;
+                    dy = pos1relY+pos2relY;
+                    
+                    const x = dx/mainPos.z*size+cw/2;
+                    const y = dy/mainPos.z*size+ch/2;
+                    const w = 2    /mainPos.z*size;
+                    const h = Pos.h/mainPos.z*size;
+                    
+                    drawImage(img_1600_05, 0.5, x, y, w, h);
+                    ctx.globalAlpha = mainPos.z*2-1;
+                    drawImage(img_1600_1 ,   1, x, y, w, h);
+                    ctx.globalAlpha = 1;
+                }
+            }
+            
+            function drawImage(image, border, x, y, w, h, subdivision = 0) {
+                if (subdivision < imageSubdivisions) {
+                    drawImage(image, border, x+w/4, y    , w/2, h/2, subdivision+1);
+                    drawImage(image, border, x    , y+h/2, w/2, h/2, subdivision+1);
+                    drawImage(image, border, x+w/2, y+h/2, w/2, h/2, subdivision+1);
+                    return;
+                }
+                
+                const factorX = image.width  / (image.width -border*2);
+                const factorY = image.height / (image.height-border*2);
+                const W = w*factorX;
+                const H = h*factorY;
+                const X = x+w/2-W/2;
+                const Y = y+h/2-H/2;
+                ctx.drawImage(image, X, Y, W, H);
+            }
+            
+            function updateCanvasSize() {
+                cw = window.innerWidth;
+                ch = window.innerHeight;
+                size = Math.min(cw/2, ch/Pos.h);
+                imageSubdivisions = Math.max(0, Math.ceil(Math.log2(size/1600))+2);
+                if (canvas.width !== cw || canvas.height !== ch) {
+                    canvas.width = cw;
+                    canvas.height = ch;
+                    return true;
+                }
+                return false;
+            }
+            
+            function approachTarget(delay) {
+                const factor = Math.exp(-delay/100);
+                mainPos.x += targetX*(1-factor)*mainPos.reverse;
+                mainPos.y += targetY*(1-factor)*mainPos.reverse;
+                mainPos.z *= targetZ**(1-factor);
+                targetX *= factor;
+                targetY *= factor;
+                targetZ **= factor;
+                mainPos.update();
+            }
+            
+            function setTarget() {
+                mainPos.x += targetX;
+                mainPos.y += targetY;
+                mainPos.z *= targetZ;
+                targetX = 0;
+                targetY = 0;
+                targetZ = 1;
+                mainPos.update();
+            }
+            
+            function displayZoom() {
+                const rationalExponent = -mainPos.level*Math.log10(2)+Math.log10(mainPos.z);
+                let exponent = Math.floor(rationalExponent);
+                let factor = Math.round(10**(rationalExponent-exponent)*1000)/1000;
+                if (factor === 10) {
+                    factor = 1;
+                    exponent++;
+                }
+                p.innerHTML = "Zoom: "+factor+"e"+(exponent >= 0 ? "+" : "")+exponent;
+                
+            }
+            
+            let drawingTimeSmooth = 0;
+            
+            function draw() {
+                const delay = Date.now()-lastDraw;
+                lastDraw += delay;
+                window.requestAnimationFrame(draw);
+                
+                const sizeChange = updateCanvasSize();
+                
+                const difference = Math.hypot(targetX, targetY, Math.log(targetZ));
+                if (difference < 0.001) {
+                    if (difference > 0.00001) setTarget();
+                    else if (!sizeChange) return;
+                }
+                
+                approachTarget(delay);
+                
+                ctx.clearRect(0, 0, cw, ch);
+                for (let i = 0; i < 8; i++) drawLines(i);
+                drawPos();
+                const start = Date.now();
+                drawSierpinski();
+                const end = Date.now();
+                displayZoom();
+                drawingTimeSmooth = drawingTimeSmooth*0.99+(end-start)*0.01;
+                drawingTime.innerHTML = "Drawing time: "+Math.round(drawingTimeSmooth*100)/100+"ms";
+            }
+            
+            document.addEventListener("keydown", (event) => {
+                switch (event.key) {
+                    case "ArrowLeft":
+                        targetX -= 0.5*mainPos.z*targetZ;
+                        break;
+                    case "ArrowRight":
+                        targetX += 0.5*mainPos.z*targetZ;
+                        break;
+                    case "ArrowUp":
+                        targetY -= 0.5*mainPos.z*targetZ;
+                        break;
+                    case "ArrowDown":
+                        targetY += 0.5*mainPos.z*targetZ;
+                        break;
+                    case "+":
+                        targetZ *= 0.9;
+                        break;
+                    case "-":
+                        targetZ /= 0.9;
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
