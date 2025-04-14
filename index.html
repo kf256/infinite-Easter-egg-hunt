@@ -18,7 +18,7 @@
         <img id="img_1600_05" src="./1600_05.png" style="display: none;"></img>
         <img id="img_1600_1"  src="./1600_1.png"  style="display: none;"></img>
         <p id="p"></p>
-        <p id="drawingTime"></p>
+        <p id="fpsDisplay"></p>
         <script>
             class Pos {
                 constructor(sections = [], level = 0, x = 0, y = Pos.h*2/3, z = 0.5) {
@@ -285,6 +285,7 @@
             let targetZ = 1/mainPos.z;
             
             let lastDraw = Date.now();
+            let fpsSmooth = null;
             
             let imageCounter = 0;
             function imageLoaded() {
@@ -408,8 +409,6 @@
                 
             }
             
-            let drawingTimeSmooth = 0;
-            
             function draw() {
                 const delay = Date.now()-lastDraw;
                 lastDraw += delay;
@@ -426,12 +425,12 @@
                 approachTarget(delay);
                 
                 ctx.clearRect(0, 0, cw, ch);
-                const start = Date.now();
                 drawSierpinski();
-                const end = Date.now();
                 displayZoom();
-                drawingTimeSmooth = drawingTimeSmooth*0.99+(end-start)*0.01;
-                drawingTime.innerHTML = "Drawing time: "+Math.round(drawingTimeSmooth*100)/100+"ms";
+                
+                if (fpsSmooth === null || fpsSmooth === Infinity) fpsSmooth = 1000/delay;
+                fpsSmooth = fpsSmooth*0.9 + 1000/delay*0.1;
+                fpsDisplay.innerHTML = Math.round(fpsSmooth)+" fps";
             }
             
             document.addEventListener("keydown", (event) => {
