@@ -326,10 +326,9 @@
                 }
                 
                 translate(Δx, Δy) {
-                    const factor = this.z*this.reverse;
-                    const pos = new Pos([...this.sections], this.level, this.x+Δx*factor, this.y+Δy*factor, this.z);
-                    pos.updateSections();
-                    return pos;
+                    this.x += Δx*this.z*this.reverse;
+                    this.y += Δy*this.z*this.reverse;
+                    this.updateSections();
                 }
                 
                 get copy() {
@@ -520,16 +519,16 @@
             document.addEventListener("keydown", (event) => {
                 switch (event.key) {
                     case "ArrowLeft":
-                        targetPos = targetPos.translate(-0.5, 0   );
+                        targetPos.translate(-0.5, 0   );
                         break;
                     case "ArrowRight":
-                        targetPos = targetPos.translate( 0.5, 0   );
+                        targetPos.translate( 0.5, 0   );
                         break;
                     case "ArrowUp":
-                        targetPos = targetPos.translate(   0, -0.5);
+                        targetPos.translate(   0, -0.5);
                         break;
                     case "ArrowDown":
-                        targetPos = targetPos.translate(   0,  0.5);
+                        targetPos.translate(   0,  0.5);
                         break;
                     case "+":
                         targetPos.z *= 0.9;
@@ -565,7 +564,7 @@
                 if (leftMouse) {
                     let Δx = (lastMouseX-evt.pageX)/size;
                     let Δy = (lastMouseY-evt.pageY)/size;
-                    targetPos = targetPos.translate(Δx, Δy);
+                    targetPos.translate(Δx, Δy);
                 }
                 if (rightMouse) {
                     let lastDist = Math.max(size/20, Math.hypot(evt.pageX -cw/2, evt.pageY -ch/2));
