@@ -158,7 +158,7 @@
                     this.updateSections();
                 }
                 
-                relativePositionTo(pos) {
+                relativeTo(pos) {
                     let pos1 = this.copy;
                     let pos2 = pos.copy;
                     
@@ -417,7 +417,7 @@
                     pos.x = -1;
                     pos.y = 0;
                     
-                    const posRel = viewPos.relativePositionTo(pos);
+                    const posRel = viewPos.relativeTo(pos);
                     
                     const x = posRel[0]/viewPos.z*size+cw/2;
                     const y = posRel[1]/viewPos.z*size+ch/2;
@@ -480,7 +480,7 @@
                 
                 const sizeChange = updateCanvasSize();
                 
-                const relativePosition = viewPos.relativePositionTo(targetPos);
+                const relativePosition = viewPos.relativeTo(targetPos);
                 const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
                 const difference = Math.hypot(...relativePosition, Math.log(relativeZoom));
                 if (difference < 0.001) {
