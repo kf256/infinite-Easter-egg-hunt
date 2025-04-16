@@ -542,34 +542,27 @@
             
             let leftMouse = false;
             let rightMouse = false;
-            let initialLeftPos, initialRightPos;
             let lastMouseX, lastMouseY;
             
             document.oncontextmenu = () => {return false};
             document.addEventListener("mousedown", evt => {
-                if (evt.button === 0) {
-                    leftMouse = true;
-                    initialLeftPos = viewPos.copy;
-                }
-                if (evt.button === 2) {
-                    rightMouse = true;
-                    initialRightPos = viewPos.copy;
-                }
+                if (evt.button === 0) leftMouse  = true;
+                if (evt.button === 2) rightMouse = true;
             });
             document.addEventListener("mouseup", evt => {
-                if (evt.button === 0) leftMouse = false;
+                if (evt.button === 0) leftMouse  = false;
                 if (evt.button === 2) rightMouse = false;
             });
             document.addEventListener("mousemove", evt => {
                 if (leftMouse) {
-                    let Δx = (lastMouseX-evt.pageX)/size;
-                    let Δy = (lastMouseY-evt.pageY)/size;
+                    const Δx = (lastMouseX-evt.pageX)/size;
+                    const Δy = (lastMouseY-evt.pageY)/size;
                     targetPos.translate(Δx, Δy);
                 }
                 if (rightMouse) {
-                    let lastDist = Math.max(size/20, Math.hypot(evt.pageX -cw/2, evt.pageY -ch/2));
-                    let thisDist = Math.max(size/20, Math.hypot(lastMouseX-cw/2, lastMouseY-ch/2));
-                    let Δz = thisDist/lastDist;
+                    const lastDist = Math.max(size/20, Math.hypot(evt.pageX -cw/2, evt.pageY -ch/2));
+                    const thisDist = Math.max(size/20, Math.hypot(lastMouseX-cw/2, lastMouseY-ch/2));
+                    const Δz = thisDist/lastDist;
                     targetPos.z *= Δz;
                     targetPos.update();
                 }
