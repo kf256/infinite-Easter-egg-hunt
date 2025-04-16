@@ -381,14 +381,16 @@
             img_1600_1.onload = imageLoaded;
             let imageSubdivisions;
             
-            function drawSierpinski() {
+            function findVisibleSections() {
                 let positions = [];
-                for (let dy = -2; dy < 2; dy += 0.5) {
-                    for (let dx = -2; dx < 2; dx += 0.5) {
+                const searchWidth  = cw/size+2;
+                const searchHeight = ch/size+2;
+                for (let dy = -searchHeight/2; dy <= searchHeight/2; dy += 0.5) {
+                    for (let dx = -searchWidth/2; dx <= searchWidth/2; dx += 0.5) {
                         const newPos = viewPos.copy.addXY(dx, dy);
                         let found = false;
                         for (let i = 0; i < positions.length; i++) {
-                            const positionI = positions[i][0];
+                            const positionI = positions[i];
                             if (positionI.sections.length !== newPos.sections.length) continue;
                             let equal = true;
                             for (let j = 0; j < positionI.sections.length; j++) {
@@ -402,25 +404,23 @@
                                 break;
                             }
                         }
-                        if (!found) positions.push([newPos, dx, dy]);
+                        if (!found) positions.push(newPos);
                     }
                 }
-                
-                for (let i = 0; i < positions.length; i++) {
-                    const pos2 = positions[i][0];
-                    if (pos2.sections.indexOf(0) !== -1) continue;
+                return positions;
+            }
+            
+            function drawSierpinski(sections) {
+                for (let i = 0; i < sections.length; i++) {
+                    const pos = sections[i];
+                    if (pos.sections.indexOf(0) !== -1) continue;
+                    pos.x = -1;
+                    pos.y = 0;
                     
-                    const pos1relX = positions[i][1];
-                    const pos1relY = positions[i][2];
+                    const posRel = viewPos.relativePositionTo(pos);
                     
-                    const pos2relX = -1-pos2.x;
-                    const pos2relY =   -pos2.y;
-                    
-                    dx = pos1relX+pos2relX;
-                    dy = pos1relY+pos2relY;
-                    
-                    const x = dx/viewPos.z*size+cw/2;
-                    const y = dy/viewPos.z*size+ch/2;
+                    const x = posRel[0]/viewPos.z*size+cw/2;
+                    const y = posRel[1]/viewPos.z*size+ch/2;
                     const w = 2    /viewPos.z*size;
                     const h = Pos.h/viewPos.z*size;
                     
@@ -495,7 +495,8 @@
                 viewPos.update();
                 
                 ctx.clearRect(0, 0, cw, ch);
-                drawSierpinski();
+                const visibleSections = findVisibleSections();
+                drawSierpinski(visibleSections);
                 displayZoom();
                 
                 if (fpsSmooth === null || fpsSmooth === Infinity) fpsSmooth = 1000/delay;
