@@ -29,27 +29,36 @@
                     this.z = z;
                 }
                 
-                increaseLevel() {
-                    if (this.x < Pos.h/2) {
-                        this.sections.push(1);
-                        this.x *= 2;
-                        this.y *= 2;
-                    } else if (this.x - this.y/Pos.h > -1) {
-                        this.sections.push(2);
-                        this.x = this.x*2+1;
-                        this.y = this.y*2-Pos.h;
-                    } else if (this.x + this.y/Pos.h <  1) {
-                        this.sections.push(3);
-                        this.x = this.x*2-1;
-                        this.y = this.y*2-Pos.h;
-                    } else {
-                        this.sections.push(0);
-                        this.x *= -2;
-                        this.y = Pos.h*2-this.y*2;
+                addLevel(section) {
+                    this.sections.push(section);
+                    switch (section) {
+                        case 0:
+                            this.x *= -2;
+                            this.y = Pos.h*2-this.y*2;
+                            break;
+                        case 1:
+                            this.x *= 2;
+                            this.y *= 2;
+                            break;
+                        case 2:
+                            this.x = this.x*2+1;
+                            this.y = this.y*2-Pos.h;
+                            break;
+                        case 3:
+                            this.x = this.x*2-1;
+                            this.y = this.y*2-Pos.h;
+                            break;
                     }
                     this.level++;
                     this.z *= 2;
                     this.simplifySections();
+                }
+                
+                increaseLevel() {
+                    if (this.x < Pos.h/2) this.addLevel(1);
+                    else if (this.x - this.y/Pos.h > -1) this.addLevel(2);
+                    else if (this.x + this.y/Pos.h <  1) this.addLevel(3);
+                    else this.addLevel(0);
                 }
                 
                 decreaseLevel() {
@@ -171,7 +180,8 @@
                     
                     let Δx = pos2.x-pos1.x;
                     let Δy = pos2.y-pos1.y;
-                    return [Δx*this.reverse, Δy*this.reverse];
+                    const factor = pos1.reverse * 2**(this.level-pos1.level);
+                    return [Δx*factor, Δy*factor];
                 }
                 
                 toSection0(index) {
@@ -319,6 +329,24 @@
                     return this.z/2**this.level;
                 }
                 
+                sameSection(pos) {
+                    if (this.level !== pos.level) return false;
+                    
+                    for (let i = Math.min(this.startLevel, pos.startLevel); i < this.level; i++) {
+                        let section1, section2;
+                        
+                        if (i < this.startLevel) section1 = Pos.defaultSection(i);
+                        else section1 = this.sections[i-this.startLevel];
+                        
+                        if (i <  pos.startLevel) section2 = Pos.defaultSection(i);
+                        else section2 =  pos.sections[i- pos.startLevel];
+                        
+                        if (section1 !== section2) return false;
+                    }
+                    
+                    return true;
+                }
+                
                 get reverse() {
                     let result = 1;
                     for (let i = 0; i < this.sections.length; i++) if (this.sections[i] === 0) result *= -1;
@@ -332,7 +360,7 @@
                 }
                 
                 get copy() {
-                    return new Pos([...this.sections], this.level, this.x, this.y, this.z);
+                    return new Pos(this.sections.slice(), this.level, this.x, this.y, this.z);
                 }
                 
                 addXY(Δx, Δy) {
@@ -390,16 +418,7 @@
                         const newPos = viewPos.copy.addXY(dx, dy);
                         let found = false;
                         for (let i = 0; i < positions.length; i++) {
-                            const positionI = positions[i];
-                            if (positionI.sections.length !== newPos.sections.length) continue;
-                            let equal = true;
-                            for (let j = 0; j < positionI.sections.length; j++) {
-                                if (positionI.sections[j] !== newPos.sections[j]) {
-                                    equal = false;
-                                    break;
-                                }
-                            }
-                            if (equal) {
+                            if (positions[i].sameSection(newPos)) {
                                 found = true;
                                 break;
                             }
@@ -412,7 +431,7 @@
             
             function drawSierpinski(sections) {
                 for (let i = 0; i < sections.length; i++) {
-                    const pos = sections[i];
+                    const pos = sections[i].copy;
                     if (pos.sections.indexOf(0) !== -1) continue;
                     pos.x = -1;
                     pos.y = 0;
@@ -446,6 +465,73 @@
                 const X = x+w/2-W/2;
                 const Y = y+h/2-H/2;
                 ctx.drawImage(image, X, Y, W, H);
+            }
+            
+            function drawAllEasterEggs(sections) {
+                for (let s = 0; s < sections.length; s++) drawEasterEgg(sections[s], 4);
+                const greaterSections = [...sections];
+                for (let i = 0; i < 5; i++) {
+                    const maxIndex = greaterSections.length;
+                    for (let s = 0; s < maxIndex; s++) {
+                        const supersection = greaterSections[s].copy;
+                        supersection.decreaseLevel();
+                        let found = false;
+                        for (let t = 0; t < greaterSections.length; t++) {
+                            if (supersection.sameSection(greaterSections[t])) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) greaterSections.push(supersection);
+                    }
+                }
+                for (let s = sections.length; s < greaterSections.length; s++) drawEasterEgg(greaterSections[s], 0);
+            }
+            function drawEasterEgg(section, iteration) {
+                const zeroIndex = section.sections.indexOf(0);
+                if (zeroIndex === -1) {
+                    if (iteration > 0) {
+                        for (let i = 0; i < 4; i++) {
+                            const newSection = section.copy;
+                            newSection.addLevel(i);
+                            drawEasterEgg(newSection, iteration-1);
+                        }
+                    }
+                    return;
+                }
+                
+                if (zeroIndex !== section.sections.length-1) return;
+                
+                section.x = 0;
+                section.y = Pos.h*2/3;
+                
+                const posRel = viewPos.relativeTo(section);
+                
+                const x = posRel[0]/viewPos.z*size+cw/2;
+                const y = posRel[1]/viewPos.z*size+ch/2;
+                const r = 2**(viewPos.level-section.level)/viewPos.z*size*Pos.h/3;
+                
+                if (Math.hypot(y-ch/2, x-cw/2) > r+Math.hypot(ch, cw)) return;
+                
+                const zoom = section.level-viewPos.level+Math.log2(viewPos.z);
+                if (zoom < -5) ctx.globalAlpha = Math.max(0, 6+zoom);
+                if (zoom >  3) ctx.globalAlpha = Math.max(0, 4-zoom);
+                ctx.beginPath();
+                ctx.lineWidth = r/20;
+                ctx.strokeStyle = "black";
+                ctx.lineCap  = "round";
+                ctx.lineJoin = "round";
+                const res = Math.ceil(50*0.7**zoom);
+                for (let i = 0; i <= res; i++) {
+                    const t = i/res*Math.PI*2;
+                    const X = Math.sin(t)*0.7;
+                    const Y = Math.cos(t)+X**2*0.4+0.1;
+                    if (t === 0) ctx.moveTo(x+X*r, y+Y*r);
+                    else         ctx.lineTo(x+X*r, y+Y*r);
+                }
+                ctx.stroke();
+                ctx.closePath();
+                ctx.globalAlpha = 1;
             }
             
             function updateCanvasSize() {
@@ -497,6 +583,7 @@
                 ctx.clearRect(0, 0, cw, ch);
                 const visibleSections = findVisibleSections();
                 drawSierpinski(visibleSections);
+                drawAllEasterEggs(visibleSections);
                 displayZoom();
                 
                 if (fpsSmooth === null || fpsSmooth === Infinity) fpsSmooth = 1000/delay;
