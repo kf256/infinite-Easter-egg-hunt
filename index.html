@@ -461,23 +461,6 @@
                 return false;
             }
             
-            function approachTarget(delay) {
-                const factor = 1-Math.exp(-delay/100);
-                
-                const relativePosition = viewPos.relativePositionTo(targetPos);
-                viewPos.x += viewPos.reverse*relativePosition[0]*factor;
-                viewPos.y += viewPos.reverse*relativePosition[1]*factor;
-                
-                const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
-                viewPos.z *= relativeZoom**factor;
-                
-                viewPos.update();
-            }
-            
-            function setTarget() {
-                viewPos = targetPos.copy;
-            }
-            
             function displayZoom() {
                 const rationalExponent = -viewPos.level*Math.log10(2)+Math.log10(viewPos.z);
                 let exponent = Math.floor(rationalExponent);
@@ -501,11 +484,15 @@
                 const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
                 const difference = Math.hypot(...relativePosition, Math.log(relativeZoom));
                 if (difference < 0.001) {
-                    if (difference > 0.00001) setTarget();
+                    if (difference > 0.00001) viewPos = targetPos.copy;
                     else if (!sizeChange) return;
                 }
                 
-                approachTarget(delay);
+                const factor = 1-Math.exp(-delay/100);
+                viewPos.x += viewPos.reverse*relativePosition[0]*factor;
+                viewPos.y += viewPos.reverse*relativePosition[1]*factor;
+                viewPos.z *= relativeZoom**factor;
+                viewPos.update();
                 
                 ctx.clearRect(0, 0, cw, ch);
                 drawSierpinski();
