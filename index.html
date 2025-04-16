@@ -367,10 +367,8 @@
             const ctx = canvas.getContext("2d");
             let cw, ch, size;
             
-            let mainPos = new Pos([], 0, 0, Pos.h/2, 1000);
-            let targetX = 0;
-            let targetY = 0;
-            let targetZ = 1/mainPos.z;
+            let viewPos   = new Pos([], 0, 0, Pos.h/2, 1000);
+            let targetPos = new Pos([], 0, 0, Pos.h/2, 1);
             
             let lastDraw = Date.now();
             let fpsSmooth = null;
@@ -388,7 +386,7 @@
                 let positions = [];
                 for (let dy = -2; dy < 2; dy += 0.5) {
                     for (let dx = -2; dx < 2; dx += 0.5) {
-                        const newPos = mainPos.copy.addXY(dx, dy);
+                        const newPos = viewPos.copy.addXY(dx, dy);
                         let found = false;
                         for (let i = 0; i < positions.length; i++) {
                             const positionI = positions[i][0];
@@ -422,13 +420,13 @@
                     dx = pos1relX+pos2relX;
                     dy = pos1relY+pos2relY;
                     
-                    const x = dx/mainPos.z*size+cw/2;
-                    const y = dy/mainPos.z*size+ch/2;
-                    const w = 2    /mainPos.z*size;
-                    const h = Pos.h/mainPos.z*size;
+                    const x = dx/viewPos.z*size+cw/2;
+                    const y = dy/viewPos.z*size+ch/2;
+                    const w = 2    /viewPos.z*size;
+                    const h = Pos.h/viewPos.z*size;
                     
                     drawImage(img_1600_05, 0.5, x, y, w, h);
-                    ctx.globalAlpha = mainPos.z*2-1;
+                    ctx.globalAlpha = viewPos.z*2-1;
                     drawImage(img_1600_1 ,   1, x, y, w, h);
                     ctx.globalAlpha = 1;
                 }
@@ -465,28 +463,24 @@
             }
             
             function approachTarget(delay) {
-                const factor = Math.exp(-delay/100);
-                mainPos.x += targetX*(1-factor)*mainPos.reverse;
-                mainPos.y += targetY*(1-factor)*mainPos.reverse;
-                mainPos.z *= targetZ**(1-factor);
-                targetX *= factor;
-                targetY *= factor;
-                targetZ **= factor;
-                mainPos.update();
+                const factor = 1-Math.exp(-delay/100);
+                
+                const relativePosition = viewPos.relativePositionTo(targetPos);
+                viewPos.x += viewPos.reverse*relativePosition[0]*factor;
+                viewPos.y += viewPos.reverse*relativePosition[1]*factor;
+                
+                const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
+                viewPos.z *= relativeZoom**factor;
+                
+                viewPos.update();
             }
             
             function setTarget() {
-                mainPos.x += targetX;
-                mainPos.y += targetY;
-                mainPos.z *= targetZ;
-                targetX = 0;
-                targetY = 0;
-                targetZ = 1;
-                mainPos.update();
+                viewPos = targetPos.copy;
             }
             
             function displayZoom() {
-                const rationalExponent = -mainPos.level*Math.log10(2)+Math.log10(mainPos.z);
+                const rationalExponent = -viewPos.level*Math.log10(2)+Math.log10(viewPos.z);
                 let exponent = Math.floor(rationalExponent);
                 let factor = Math.round(10**(rationalExponent-exponent)*1000)/1000;
                 if (factor === 10) {
@@ -504,7 +498,9 @@
                 
                 const sizeChange = updateCanvasSize();
                 
-                const difference = Math.hypot(targetX, targetY, Math.log(targetZ));
+                const relativePosition = viewPos.relativePositionTo(targetPos);
+                const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
+                const difference = Math.hypot(...relativePosition, Math.log(relativeZoom));
                 if (difference < 0.001) {
                     if (difference > 0.00001) setTarget();
                     else if (!sizeChange) return;
@@ -524,24 +520,25 @@
             document.addEventListener("keydown", (event) => {
                 switch (event.key) {
                     case "ArrowLeft":
-                        targetX -= 0.5*mainPos.z*targetZ;
+                        targetPos = targetPos.translate(-0.5, 0   );
                         break;
                     case "ArrowRight":
-                        targetX += 0.5*mainPos.z*targetZ;
+                        targetPos = targetPos.translate( 0.5, 0   );
                         break;
                     case "ArrowUp":
-                        targetY -= 0.5*mainPos.z*targetZ;
+                        targetPos = targetPos.translate(   0, -0.5);
                         break;
                     case "ArrowDown":
-                        targetY += 0.5*mainPos.z*targetZ;
+                        targetPos = targetPos.translate(   0,  0.5);
                         break;
                     case "+":
-                        targetZ *= 0.9;
+                        targetPos.z *= 0.9;
                         break;
                     case "-":
-                        targetZ /= 0.9;
+                        targetPos.z /= 0.9;
                         break;
                 }
+                targetPos.update();
             });
             
             let leftMouse = false;
@@ -553,11 +550,11 @@
             document.addEventListener("mousedown", evt => {
                 if (evt.button === 0) {
                     leftMouse = true;
-                    initialLeftPos = mainPos.copy;
+                    initialLeftPos = viewPos.copy;
                 }
                 if (evt.button === 2) {
                     rightMouse = true;
-                    initialRightPos = mainPos.copy;
+                    initialRightPos = viewPos.copy;
                 }
             });
             document.addEventListener("mouseup", evt => {
@@ -568,14 +565,14 @@
                 if (leftMouse) {
                     let Δx = (lastMouseX-evt.pageX)/size;
                     let Δy = (lastMouseY-evt.pageY)/size;
-                    targetX += Δx*initialLeftPos.z;
-                    targetY += Δy*initialLeftPos.z;
+                    targetPos = targetPos.translate(Δx, Δy);
                 }
                 if (rightMouse) {
                     let lastDist = Math.max(size/20, Math.hypot(evt.pageX -cw/2, evt.pageY -ch/2));
                     let thisDist = Math.max(size/20, Math.hypot(lastMouseX-cw/2, lastMouseY-ch/2));
                     let Δz = thisDist/lastDist;
-                    targetZ *= Δz;
+                    targetPos.z *= Δz;
+                    targetPos.update();
                 }
                 lastMouseX = evt.pageX;
                 lastMouseY = evt.pageY;
