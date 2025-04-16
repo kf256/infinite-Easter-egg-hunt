@@ -89,55 +89,62 @@
                     this.sections.unshift(Pos.defaultSection(level));
                 }
                 
+                mirror01() {
+                    const index0 = this.sections.lastIndexOf(0);
+                    const index1 = this.sections.lastIndexOf(1);
+                    let index = Math.max(index0, index1);
+                    while (index === -1) {
+                        this.addSection();
+                        index = this.sections.lastIndexOf(1);
+                    }
+                    
+                    this.x *= -1;
+                    this.y = Pos.h*2-this.y;
+                    
+                    for (let i = index; i < this.sections.length; i++) this.sections[i] = [1, 0, 3, 2][this.sections[i]];
+                }
+                mirror02() {
+                    const index0 = this.sections.lastIndexOf(0);
+                    const index2 = this.sections.lastIndexOf(2);
+                    let index = Math.max(index0, index2);
+                    while (index === -1) {
+                        this.addSection();
+                        index = this.sections.lastIndexOf(2);
+                    }
+                    
+                    this.x = 1-this.x;
+                    this.y = Pos.h-this.y;
+                    
+                    for (let i = index; i < this.sections.length; i++) this.sections[i] = [2, 3, 0, 1][this.sections[i]];
+                }
+                mirror03() {
+                    const index0 = this.sections.lastIndexOf(0);
+                    const index3 = this.sections.lastIndexOf(3);
+                    let index = Math.max(index0, index3);
+                    while (index === -1) {
+                        this.addSection();
+                        index = this.sections.lastIndexOf(3);
+                    }
+                    
+                    this.x = -1-this.x;
+                    this.y = Pos.h-this.y;
+                    
+                    for (let i = index; i < this.sections.length; i++) this.sections[i] = [3, 2, 1, 0][this.sections[i]];
+                }
+                
                 updateSections() {
                     let changed = false;
                     
                     if (this.y > Pos.h) {
-                        const index0 = this.sections.lastIndexOf(0);
-                        const index1 = this.sections.lastIndexOf(1);
-                        let index = Math.max(index0, index1);
-                        while (index === -1) {
-                            this.addSection();
-                            index = this.sections.lastIndexOf(1);
-                        }
-                        
-                        this.x *= -1;
-                        this.y = Pos.h*2-this.y;
-                        
-                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [1, 0, 3, 2][this.sections[i]];
-                        
+                        this.mirror01();
                         changed = true;
                     }
                     if (this.x - this.y/Pos.h > 0) {
-                        const index0 = this.sections.lastIndexOf(0);
-                        const index2 = this.sections.lastIndexOf(2);
-                        let index = Math.max(index0, index2);
-                        while (index === -1) {
-                            this.addSection();
-                            index = this.sections.lastIndexOf(2);
-                        }
-                        
-                        this.x = 1-this.x;
-                        this.y = Pos.h-this.y;
-                        
-                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [2, 3, 0, 1][this.sections[i]];
-                        
+                        this.mirror02();
                         changed = true;
                     }
                     if (this.x + this.y/Pos.h < 0) {
-                        const index0 = this.sections.lastIndexOf(0);
-                        const index3 = this.sections.lastIndexOf(3);
-                        let index = Math.max(index0, index3);
-                        while (index === -1) {
-                            this.addSection();
-                            index = this.sections.lastIndexOf(3);
-                        }
-                        
-                        this.x = -1-this.x;
-                        this.y = Pos.h-this.y;
-                        
-                        for (let i = index; i < this.sections.length; i++) this.sections[i] = [3, 2, 1, 0][this.sections[i]];
-                        
+                        this.mirror03();
                         changed = true;
                     }
                     
@@ -149,6 +156,87 @@
                     if (this.z >=   1) this.decreaseLevel();
                     if (this.z <  0.5) this.increaseLevel();
                     this.updateSections();
+                }
+                
+                relativePositionTo(pos) {
+                    let pos1 = this.copy;
+                    let pos2 = pos.copy;
+                    
+                    while (pos1.startLevel > pos2.startLevel) pos1.addSection();
+                    while (pos1.startLevel < pos2.startLevel) pos2.addSection();
+                    while (pos1.level > pos2.level) pos1.decreaseLevel();
+                    while (pos1.level < pos2.level) pos2.decreaseLevel();
+                    
+                    for (let i = 0; i < pos1.sections.length; i++) pos2.toSection(pos1.sections[i], i);
+                    
+                    let Δx = pos2.x-pos1.x;
+                    let Δy = pos2.y-pos1.y;
+                    return [Δx*this.reverse, Δy*this.reverse];
+                }
+                
+                toSection0(index) {
+                    if (index === this.sections.length-1) {
+                        switch (this.sections[index]) {
+                            case 0: return;
+                            case 1: this.mirror01(); return;
+                            case 2: this.mirror02(); return;
+                            case 3: this.mirror03(); return;
+                        }
+                    }
+                    switch (this.sections[index]) {
+                        case 0: return;
+                        case 1:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 2) this.toSection(3, i);
+                            }
+                            this.mirror01();
+                            return;
+                        case 2:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 3) this.toSection(1, i);
+                            }
+                            this.mirror02();
+                            return;
+                        case 3:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 1) this.toSection(2, i);
+                            }
+                            this.mirror03();
+                            return;
+                    }
+                }
+                toSection(section, index) {
+                    if (this.sections[index] === section) return;
+                    if (this.sections[index] !== 0) this.toSection0(index);
+                    if (index === this.sections.length-1) {
+                        switch (section) {
+                            case 0: return;
+                            case 1: this.mirror01(); return;
+                            case 2: this.mirror02(); return;
+                            case 3: this.mirror03(); return;
+                        }
+                    }
+                    switch (section) {
+                        case 0: return;
+                        case 1:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 2) this.toSection(3, i);
+                            }
+                            this.mirror01();
+                            return;
+                        case 2:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 3) this.toSection(1, i);
+                            }
+                            this.mirror02();
+                            return;
+                        case 3:
+                            for (let i = index+1; i < this.sections.length; i++) {
+                                if (this.sections[i] !== 1) this.toSection(2, i);
+                            }
+                            this.mirror03();
+                            return;
+                    }
                 }
                 
                 absolute() {
