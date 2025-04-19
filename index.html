@@ -468,7 +468,7 @@
             }
             
             function drawAllEasterEggs(sections) {
-                for (let s = 0; s < sections.length; s++) drawEasterEgg(sections[s], 4);
+                for (let s = 0; s < sections.length; s++) drawEasterEgg(sections[s], 6);
                 const greaterSections = [...sections];
                 for (let i = 0; i < 5; i++) {
                     const maxIndex = greaterSections.length;
@@ -502,6 +502,11 @@
                 
                 if (zeroIndex !== section.sections.length-1) return;
                 
+                const seeds = randomSeeds(section);
+                const number = wichmannHillEvaluate(seeds);
+                const probability = 0.1/(10+section.level**2+section.startLevel**2);
+                if (number >= probability) return;
+                
                 section.x = 0;
                 section.y = Pos.h*2/3;
                 
@@ -509,29 +514,127 @@
                 
                 const x = posRel[0]/viewPos.z*size+cw/2;
                 const y = posRel[1]/viewPos.z*size+ch/2;
-                const r = 2**(viewPos.level-section.level)/viewPos.z*size*Pos.h/3;
+                const r = 2**(viewPos.level-section.level)/viewPos.z*size*Pos.h/6;
                 
-                if (Math.hypot(y-ch/2, x-cw/2) > r+Math.hypot(ch, cw)) return;
+                if (x+r*0.7 < 0 || x-r*0.7 > cw || y+r*1 < 0 || y-r*1 > ch) return;
                 
                 const zoom = section.level-viewPos.level+Math.log2(viewPos.z);
-                if (zoom < -5) ctx.globalAlpha = Math.max(0, 6+zoom);
-                if (zoom >  3) ctx.globalAlpha = Math.max(0, 4-zoom);
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(r, r);
+                
                 ctx.beginPath();
-                ctx.lineWidth = r/20;
-                ctx.strokeStyle = "black";
-                ctx.lineCap  = "round";
-                ctx.lineJoin = "round";
-                const res = Math.ceil(50*0.7**zoom);
+                const res = Math.ceil(100*0.7**zoom);
                 for (let i = 0; i <= res; i++) {
                     const t = i/res*Math.PI*2;
                     const X = Math.sin(t)*0.7;
-                    const Y = Math.cos(t)+X**2*0.4+0.1;
-                    if (t === 0) ctx.moveTo(x+X*r, y+Y*r);
-                    else         ctx.lineTo(x+X*r, y+Y*r);
+                    const Y = Math.cos(t)+X**2*0.4;
+                    if (t === 0) ctx.moveTo(X, Y);
+                    else         ctx.lineTo(X, Y);
                 }
-                ctx.stroke();
-                ctx.closePath();
-                ctx.globalAlpha = 1;
+                ctx.clip();
+                
+                ctx.fillStyle = newColor(seeds);
+                for (let Y = -1; Y < 1; Y += 0.2) {
+                    wichmannHillNext(seeds);
+                    const type = Math.floor(wichmannHillEvaluate(seeds)*3);
+                    switch (type) {
+                        case 0:
+                            ctx.fillRect(-0.7, Y, 1.4, 0.1);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.08, 1.4, 0.04);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.1, 1.4, 0.105);
+                            break;
+                        case 1: {
+                            const color = ctx.fillStyle;
+                            ctx.fillRect(-0.7, Y, 1.4, 0.205);
+                            ctx.fillStyle = newColor(seeds);
+                            for (let X = -0.7; X < 0.7; X += 0.2) {
+                                ctx.beginPath();
+                                ctx.arc(X, Y+0.1, 0.02, Math.PI/2, -Math.PI/2);
+                                ctx.arc(X+0.1, Y+0.1, 0.02, Math.PI/2*3, Math.PI/2);
+                                ctx.fill();
+                                ctx.closePath();
+                            }
+                            ctx.fillStyle = color;
+                            break;
+                        }
+                        case 2:
+                            ctx.fillRect(-0.7, Y     , 1.4, 0.04);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.04, 1.4, 0.06);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.10, 1.4, 0.06);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.16, 1.4, 0.045);
+                            ctx.strokeStyle = newColor(seeds);
+                            ctx.lineWidth = 0.03;
+                            ctx.beginPath();
+                            for (let X = -0.7; X < 0.7; X += 0.08) {
+                                ctx.arc(X     , Y+0.1-Math.cos(30/180*Math.PI)*0.04, 0.04, 120/180*Math.PI,  60/180*Math.PI);
+                                ctx.arc(X+0.04, Y+0.1+Math.cos(30/180*Math.PI)*0.04, 0.04, 240/180*Math.PI, 300/180*Math.PI, true);
+                            }
+                            ctx.stroke();
+                            ctx.closePath();
+                            break;
+                    }
+                }
+                
+                const gradient1 = ctx.createRadialGradient(-0.3, -0.4, 0, -0.1, -0.1, 1.1);
+                gradient1.addColorStop(0.0, "#fff4");
+                gradient1.addColorStop(0.8, "#0004");
+                gradient1.addColorStop(1.0, "#000f");
+                ctx.fillStyle = gradient1;
+                ctx.fillRect(-0.7, -1, 1.4, 2);
+                
+                const gradient2 = ctx.createLinearGradient(-0.7, 0, 0.7, 0);
+                gradient2.addColorStop(0.0, "#fff4");
+                gradient2.addColorStop(0.8, "#0004");
+                gradient2.addColorStop(1.0, "#0008");
+                ctx.fillStyle = gradient2;
+                ctx.fillRect(-0.7, -1, 1.4, 2);
+                
+                let alpha = 1;
+                if (zoom < -5) alpha = Math.max(0, 6+zoom);
+                if (zoom >  5) alpha = Math.max(0, 6-zoom);
+                ctx.fillStyle = "rgba(255, 255, 255, "+(1-alpha)+")";
+                ctx.fillRect(-0.7, -1, 1.4, 2);
+                
+                ctx.restore();
+            }
+            
+            function wichmannHillNext(seeds) {
+                seeds[0] = 171*seeds[0] % 30269;
+                seeds[1] = 172*seeds[1] % 30307;
+                seeds[2] = 170*seeds[2] % 30323;
+            }
+            function wichmannHillEvaluate(seeds) {
+                return (seeds[0]/30269 + seeds[1]/30307 + seeds[2]/30323) % 1;
+            }
+            function randomSeeds(section) {
+                section.simplifySections();
+                const seeds = [Math.abs(section.startLevel), Math.abs(section.level), section.sections.length];
+                for (let i = 0; i < section.sections.length; i++) {
+                    const defaultSection = Pos.defaultSection(section.startLevel+i);
+                    const difference = (section.sections[i]-defaultSection+3)%4;
+                    switch (difference) {
+                        case 0: seeds[0]++; break;
+                        case 1: seeds[1]++; break;
+                        case 2: seeds[2]++; break;
+                        case 3: seeds[0]++; seeds[1]++; seeds[2]++; break;
+                    }
+                    wichmannHillNext(seeds);
+                }
+                for (let i = 0; i < 5; i++) wichmannHillNext(seeds);
+                return seeds;
+            }
+            function newColor(seeds) {
+                wichmannHillNext(seeds);
+                const number = wichmannHillEvaluate(seeds);
+                const colors = ["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink", "gold", "brown"];
+                return colors[Math.floor(number*colors.length)];
             }
             
             function updateCanvasSize() {
