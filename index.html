@@ -399,6 +399,7 @@
             
             let lastDraw = Date.now();
             let fpsSmooth = null;
+            let redraw = true;
             
             let imageCounter = 0;
             function imageLoaded() {
@@ -408,6 +409,9 @@
             img_1600_05.onload = imageLoaded;
             img_1600_1.onload = imageLoaded;
             let imageSubdivisions;
+            
+            let visibleEggs = [];
+            let collectedEggs = [];
             
             function findVisibleSections() {
                 let positions = [];
@@ -468,6 +472,7 @@
             }
             
             function drawAllEasterEggs(sections) {
+                visibleEggs = [];
                 for (let s = 0; s < sections.length; s++) drawEasterEgg(sections[s], 6);
                 const greaterSections = [...sections];
                 for (let i = 0; i < 5; i++) {
@@ -517,6 +522,19 @@
                 const r = 2**(viewPos.level-section.level)/viewPos.z*size*Pos.h/6;
                 
                 if (x+r*0.7 < 0 || x-r*0.7 > cw || y+r*1 < 0 || y-r*1 > ch) return;
+                
+                for (let i = 0; i < collectedEggs.length; i++) {
+                    const egg = collectedEggs[i];
+                    if (egg[1] !== section.level) continue;
+                    if (egg[0].length !== section.sections.length) continue;
+                    let equal = true;
+                    for (let j = 0; j < section.level; j++) {
+                        if (egg[0][j] !== section.sections[j]) equal = false;
+                    }
+                    if (equal) return;
+                }
+                
+                visibleEggs.push([x, y, r, section.sections, section.level]);
                 
                 const zoom = section.level-viewPos.level+Math.log2(viewPos.z);
                 
@@ -668,20 +686,25 @@
                 window.requestAnimationFrame(draw);
                 
                 const sizeChange = updateCanvasSize();
+                if (sizeChange) redraw = true;
                 
                 const relativePosition = viewPos.relativeTo(targetPos);
                 const relativeZoom = targetPos.z/viewPos.z * 2**(viewPos.level-targetPos.level);
                 const difference = Math.hypot(...relativePosition, Math.log(relativeZoom));
-                if (difference < 0.001) {
-                    if (difference > 0.00001) viewPos = targetPos.copy;
-                    else if (!sizeChange) return;
+                if (difference > 0.001) {
+                    const factor = 1 - Math.exp(-delay / 100);
+                    viewPos.x += viewPos.reverse * relativePosition[0] * factor;
+                    viewPos.y += viewPos.reverse * relativePosition[1] * factor;
+                    viewPos.z *= relativeZoom ** factor;
+                    viewPos.update();
+                    redraw = true;
+                } else if (difference > 0.00001) {
+                    viewPos = targetPos.copy;
+                    redraw = true;
                 }
                 
-                const factor = 1-Math.exp(-delay/100);
-                viewPos.x += viewPos.reverse*relativePosition[0]*factor;
-                viewPos.y += viewPos.reverse*relativePosition[1]*factor;
-                viewPos.z *= relativeZoom**factor;
-                viewPos.update();
+                if (!redraw) return;
+                redraw = false;
                 
                 ctx.clearRect(0, 0, cw, ch);
                 const visibleSections = findVisibleSections();
@@ -746,6 +769,20 @@
                 }
                 lastMouseX = evt.pageX;
                 lastMouseY = evt.pageY;
+            });
+            document.addEventListener("click", evt => {
+                for (let i = 0; i < visibleEggs.length; i++) {
+                    const egg = visibleEggs[i];
+                    const x = egg[0];
+                    const y = egg[1];
+                    const r = egg[2];
+                    if (x-r*0.7 > evt.pageX) continue;
+                    if (x+r*0.7 < evt.pageX) continue;
+                    if (y-r     > evt.pageY) continue;
+                    if (y+r     < evt.pageY) continue;
+                    collectedEggs.push(egg.slice(3));
+                    redraw = true;
+                }
             });
         </script>
     </body>
