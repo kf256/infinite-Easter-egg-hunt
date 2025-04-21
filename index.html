@@ -509,7 +509,7 @@
                 
                 const seeds = randomSeeds(section);
                 const number = wichmannHillEvaluate(seeds);
-                const probability = 0.1/(10+section.level**2+section.startLevel**2);
+                const probability = 0.002;
                 if (number >= probability) return;
                 
                 section.x = 0;
