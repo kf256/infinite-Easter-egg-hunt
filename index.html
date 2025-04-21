@@ -22,6 +22,7 @@
         <img id="img_1600_1"  src="./1600_1.png"  style="display: none;"></img>
         <p id="p"></p>
         <p id="fpsDisplay"></p>
+        <p id="easterEggCounter"></p>
         <script>
             class Pos {
                 constructor(sections = [], level = 0, x = 0, y = Pos.h*2/3, z = 0.5) {
@@ -718,6 +719,8 @@
                 if (fpsSmooth === null || fpsSmooth === Infinity) fpsSmooth = 1000/delay;
                 fpsSmooth = fpsSmooth*0.9 + 1000/delay*0.1;
                 fpsDisplay.innerHTML = Math.round(fpsSmooth)+" fps";
+                
+                easterEggCounter.innerHTML = "🥚: "+collectedEggs.length;
             }
             
             document.addEventListener("keydown", (event) => {
