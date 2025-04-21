@@ -746,6 +746,15 @@
                 }
                 targetPos.update();
             });
+            document.addEventListener("wheel", evt => {
+                const Δz = Math.exp(-evt.deltaY/1000);
+                targetPos.z /= Δz;
+                const Δx = evt.pageX - ( ( evt.pageX - cw/2 ) * Δz + cw/2 );
+                const Δy = evt.pageY - ( ( evt.pageY - ch/2 ) * Δz + ch/2 );
+                targetPos.x -= Δx/size*targetPos.z*targetPos.reverse;
+                targetPos.y -= Δy/size*targetPos.z*targetPos.reverse;
+                targetPos.update();
+            });
             
             let leftMouse = false;
             let rightMouse = false;
