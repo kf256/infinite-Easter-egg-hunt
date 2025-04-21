@@ -656,8 +656,8 @@
             }
             
             function updateCanvasSize() {
-                cw = window.innerWidth;
-                ch = window.innerHeight;
+                cw = canvas.offsetWidth;
+                ch = canvas.offsetHeight;
                 size = Math.min(cw/2, ch/Pos.h);
                 imageSubdivisions = Math.max(0, Math.ceil(Math.log2(size/1600))+2);
                 if (canvas.width !== cw || canvas.height !== ch) {
@@ -744,6 +744,7 @@
             let leftMouse = false;
             let rightMouse = false;
             let lastMouseX, lastMouseY;
+            let touches = [];
             
             document.oncontextmenu = () => {return false};
             document.addEventListener("mousedown", evt => {
@@ -783,6 +784,68 @@
                     collectedEggs.push(egg.slice(3));
                     redraw = true;
                 }
+            });
+            
+            function findTouch(id) {
+                for (let i = 0; i < touches.length; i++) if (touches[i].id === id) return i;
+                return -1;
+            }
+            document.addEventListener("touchstart", evt => {
+                for (let i = 0; i < evt.changedTouches.length; i++) {
+                    const touch = evt.changedTouches[i];
+                    touches.push({id: touch.identifier, x: touch.pageX, y: touch.pageY});
+                }
+            });
+            document.addEventListener("touchend", evt => {
+                for (let i = 0; i < evt.changedTouches.length; i++) {
+                    const touch = evt.changedTouches[i];
+                    touches.splice(findTouch(touch.identifier), 1);
+                }
+            });
+            document.addEventListener("touchcancel", evt => {
+                for (let i = 0; i < evt.changedTouches.length; i++) {
+                    const touch = evt.changedTouches[i];
+                    touches.splice(findTouch(touch.identifier), 1);
+                }
+            });
+            document.addEventListener("touchmove", evt => {
+                const oldTouches = JSON.parse(JSON.stringify(touches));
+                for (let i = 0; i < evt.changedTouches.length; i++) {
+                    const touch = evt.changedTouches[i];
+                    const id = findTouch(touch.identifier);
+                    touches[id].x = touch.pageX;
+                    touches[id].y = touch.pageY;
+                }
+                
+                let Δz = 1;
+                for (let i = 0; i < touches.length; i++) {
+                    for (let j = i+1; j < touches.length; j++) {
+                        const oldDist = Math.hypot(oldTouches[i].x-oldTouches[j].x, oldTouches[i].y-oldTouches[j].y);
+                        const dist = Math.hypot(touches[i].x-touches[j].x, touches[i].y-touches[j].y);
+                        Δz *= dist/oldDist;
+                    }
+                }
+                if (touches.length > 1) Δz **= 1/(touches.length*(touches.length-1)/2);
+                targetPos.z /= Δz;
+                
+                let Δx = 0;
+                let Δy = 0;
+                for (let i = 0; i < touches.length; i++) {
+                    for (let j = 0; j < touches.length; j++) {
+                        const cxNow = ( (oldTouches[i].x+oldTouches[j].x)/2 - cw/2 ) * Δz + cw/2;
+                        const cyNow = ( (oldTouches[i].y+oldTouches[j].y)/2 - ch/2 ) * Δz + ch/2;
+                        const cxTarget = (touches[i].x+touches[j].x)/2;
+                        const cyTarget = (touches[i].y+touches[j].y)/2;
+                        Δx += cxTarget-cxNow;
+                        Δy += cyTarget-cyNow;
+                    }
+                }
+                Δx /= touches.length**2;
+                Δy /= touches.length**2;
+                targetPos.x -= Δx/size*targetPos.z*targetPos.reverse;
+                targetPos.y -= Δy/size*targetPos.z*targetPos.reverse;
+                
+                targetPos.update();
             });
         </script>
     </body>
