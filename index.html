@@ -496,14 +496,22 @@
                 }
                 for (let s = sections.length; s < greaterSections.length; s++) drawEasterEgg(greaterSections[s], 0);
             }
-            function drawEasterEgg(section, iteration) {
+            function drawEasterEgg(section, iteration, seeds = null) {
+                if (seeds === null) seeds = randomSeeds(section);
+                
                 const zeroIndex = section.sections.indexOf(0);
                 if (zeroIndex === -1) {
                     if (iteration > 0) {
                         for (let i = 0; i < 4; i++) {
                             const newSection = section.copy;
                             newSection.addLevel(i);
-                            drawEasterEgg(newSection, iteration-1);
+                            if (section.sections.length === 0 && i === Pos.defaultSection(section.level)) {
+                                drawEasterEgg(newSection, iteration-1);
+                            } else {
+                                const newSeeds = seeds.slice();
+                                updateSeeds(newSeeds, i);
+                                drawEasterEgg(newSection, iteration-1, newSeeds);
+                            }
                         }
                     }
                     return;
@@ -511,7 +519,7 @@
                 
                 if (zeroIndex !== section.sections.length-1) return;
                 
-                const seeds = randomSeeds(section);
+                for (let i = 0; i < 5; i++) wichmannHillNext(seeds);
                 const number = wichmannHillEvaluate(seeds);
                 const probability = 0.002;
                 if (number >= probability) return;
@@ -635,21 +643,19 @@
             function wichmannHillEvaluate(seeds) {
                 return (seeds[0]/30269 + seeds[1]/30307 + seeds[2]/30323) % 1;
             }
+            function updateSeeds(seeds, section) {
+                switch (section) {
+                    case 0: seeds[0]++; seeds[1]++; seeds[2]++; break;
+                    case 1: seeds[1]++; break;
+                    case 2: seeds[2]++; break;
+                    case 3: seeds[0]++; break;
+                }
+                wichmannHillNext(seeds);
+            }
             function randomSeeds(section) {
                 section.simplifySections();
-                const seeds = [Math.abs(section.startLevel), Math.abs(section.level), section.sections.length];
-                for (let i = 0; i < section.sections.length; i++) {
-                    const defaultSection = Pos.defaultSection(section.startLevel+i);
-                    const difference = (section.sections[i]-defaultSection+3)%4;
-                    switch (difference) {
-                        case 0: seeds[0]++; break;
-                        case 1: seeds[1]++; break;
-                        case 2: seeds[2]++; break;
-                        case 3: seeds[0]++; seeds[1]++; seeds[2]++; break;
-                    }
-                    wichmannHillNext(seeds);
-                }
-                for (let i = 0; i < 5; i++) wichmannHillNext(seeds);
+                const seeds = [Math.abs(section.startLevel), 1, 1];
+                for (let i = 0; i < section.sections.length; i++) updateSeeds(seeds, section.sections[i]);
                 return seeds;
             }
             function newColor(seeds) {
