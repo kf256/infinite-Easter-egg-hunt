@@ -566,29 +566,31 @@
                 ctx.clip();
                 
                 ctx.fillStyle = newColor(seeds);
-                for (let Y = -1; Y < 1; Y += 0.2) {
+                for (let Y = -1; Y < 1;) {
                     wichmannHillNext(seeds);
-                    const type = Math.floor(wichmannHillEvaluate(seeds)*3);
+                    const type = Math.floor(wichmannHillEvaluate(seeds)*4);
                     switch (type) {
                         case 0:
-                            ctx.fillRect(-0.7, Y, 1.4, 0.1);
+                            ctx.fillRect(-0.7, Y     , 1.4, 0.035);
                             ctx.fillStyle = newColor(seeds);
-                            ctx.fillRect(-0.7, Y+0.08, 1.4, 0.04);
+                            ctx.fillRect(-0.7, Y+0.03, 1.4, 0.045);
                             ctx.fillStyle = newColor(seeds);
-                            ctx.fillRect(-0.7, Y+0.1, 1.4, 0.105);
+                            ctx.fillRect(-0.7, Y+0.07, 1.4, 0.035);
+                            Y += 0.1;
                             break;
                         case 1: {
                             const color = ctx.fillStyle;
-                            ctx.fillRect(-0.7, Y, 1.4, 0.205);
+                            ctx.fillRect(-0.7, Y, 1.4, 0.105);
                             ctx.fillStyle = newColor(seeds);
                             for (let X = -0.7; X < 0.7; X += 0.2) {
                                 ctx.beginPath();
-                                ctx.arc(X, Y+0.1, 0.02, Math.PI/2, -Math.PI/2);
-                                ctx.arc(X+0.1, Y+0.1, 0.02, Math.PI/2*3, Math.PI/2);
+                                ctx.arc(X    , Y+0.05, 0.02, Math.PI/2, -Math.PI/2);
+                                ctx.arc(X+0.1, Y+0.05, 0.02, Math.PI/2*3, Math.PI/2);
                                 ctx.fill();
                                 ctx.closePath();
                             }
                             ctx.fillStyle = color;
+                            Y += 0.1;
                             break;
                         }
                         case 2:
@@ -608,21 +610,41 @@
                             }
                             ctx.stroke();
                             ctx.closePath();
+                            Y += 0.2;
+                            break;
+                        case 3:
+                            ctx.fillRect(-0.7, Y     , 1.4, 0.05);
+                            ctx.fillStyle = newColor(seeds);
+                            ctx.fillRect(-0.7, Y+0.05, 1.4, 0.055);
+                            ctx.strokeStyle = newColor(seeds);
+                            ctx.lineWidth = 0.04;
+                            ctx.beginPath();
+                            const dist = Math.sqrt(3)*0.04;
+                            wichmannHillNext(seeds);
+                            const offset = wichmannHillEvaluate(seeds)*dist*2;
+                            for (let X = -0.7-offset; X < 0.7; X += dist*2) {
+                                ctx.arc(X     , Y+0.05+Math.cos(60/180*Math.PI)*0.04, 0.04, 210/180*Math.PI, 330/180*Math.PI);
+                                ctx.arc(X+dist, Y+0.05-Math.cos(60/180*Math.PI)*0.04, 0.04, 150/180*Math.PI,  30/180*Math.PI, true);
+                            }
+                            ctx.stroke();
+                            ctx.closePath();
+                            Y += 0.1;
                             break;
                     }
                 }
                 
-                const gradient1 = ctx.createRadialGradient(-0.3, -0.4, 0, -0.1, -0.1, 1.1);
+                const gradient1 = ctx.createRadialGradient(-0.3, -0.4, 0, -0.1, -0.2, 1.25);
                 gradient1.addColorStop(0.0, "#fff4");
                 gradient1.addColorStop(0.8, "#0004");
                 gradient1.addColorStop(1.0, "#000f");
                 ctx.fillStyle = gradient1;
                 ctx.fillRect(-0.7, -1, 1.4, 2);
                 
-                const gradient2 = ctx.createLinearGradient(-0.7, 0, 0.7, 0);
-                gradient2.addColorStop(0.0, "#fff4");
+                const gradient2 = ctx.createLinearGradient(-0.7, -0.2, 0.7, 0.2);
+                gradient2.addColorStop(0.0, "#fff8");
+                gradient2.addColorStop(0.3, "#fff0");
                 gradient2.addColorStop(0.8, "#0004");
-                gradient2.addColorStop(1.0, "#0008");
+                gradient2.addColorStop(1.0, "#000b");
                 ctx.fillStyle = gradient2;
                 ctx.fillRect(-0.7, -1, 1.4, 2);
                 
